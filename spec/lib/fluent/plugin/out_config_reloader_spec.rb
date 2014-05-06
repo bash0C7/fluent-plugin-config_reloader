@@ -9,28 +9,54 @@ describe do
     let(:record2) {{ 'field1' => 150, 'otherfield' => 199}}
     let(:time) {0}
 
-    context do
       let(:config) {
         %[
             type config_reloader
-            config_file child.conf
-            reload_file reload.txt
+            config_file spec/child_test.conf
+            reload_file spec/reload.txt
+            reload_file_watch_interval 0
         ]
       }
 
+
+    describe :emit do
       it do
         d = driver
-
         d.run do
-          d.emit(record1, Time.at(time))
-          d.emit(record2, Time.at(time))
+          d.instance.emit(tag, Fluent::OneEventStream.new(time.to_i, {"a"=>1}), Fluent::Test::TestOutputChain.new)
+          d.instance.emit(tag, Fluent::OneEventStream.new(time.to_i, {"a"=>2}), Fluent::Test::TestOutputChain.new)
           sleep 1
         end
-        emits = d.emits
+        d.instance.outputs.each {|o|
+          expect([
+              [time, {"a"=>1}],
+              [time, {"a"=>2}],
+            ]).to eq(o.events)
+        }
+      end
+    end
+    
+    describe :update do
+      let(:reload_file) {'spec/reload.txt'}
+      after(:each) do
+        File.delete(reload_file) if File.exists?(reload_file)
+      end
+      
+      it do
+        pending("WIP")
         
-        expect(emits.size).to eq(2)
-        expect(emits[0]).to eq([tag, time, record1])
-        expect(emits[1]).to eq([tag, time, record2])
+        expect_any_instance_of(Fluent::ConfigReloaderOutput).to receive(:update).once
+
+        d = driver
+        d.run do
+          d.instance.emit(tag, Fluent::OneEventStream.new(time.to_i, {"a"=>1}), Fluent::Test::TestOutputChain.new)
+          sleep 1
+        end
+        open(reload_file, 'w') do |o|
+          o.write 'xx'
+        end
+        sleep 2
+        sleep 2
       end
     end
   end

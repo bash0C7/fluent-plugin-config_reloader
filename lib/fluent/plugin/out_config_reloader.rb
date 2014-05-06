@@ -22,6 +22,7 @@ module Fluent
       
       def watch watch_file, interval
         mtime = Time.now
+
         @thread = Thread.new do
           loop do
             if File.exists?(watch_file) && File.mtime(watch_file) > mtime
@@ -39,6 +40,7 @@ module Fluent
     def initialize
       super
 
+      @q = Queue.new
     end
  
     def outputs
@@ -52,8 +54,6 @@ module Fluent
     end
  
     def start
-      @q = Queue.new
-
       output_start
       @thread = Thread.new(&method(:run))
       
